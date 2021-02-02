@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>二维码图片替换工具</title>
+    <link rel="stylesheet" href="./node_modules/element-ui/lib/theme-chalk/index.css" />
+    <!-- <script src="http://cdnjs.cloudflare.com/ajax/libs/fabric.js/2.4.6/fabric.min.js"></script> -->
+    <script src="./fabric.min.js"></script>
+    <!-- <script src="./node_modules/vue-drag-resize/src/components/vue-drag-resize.vue"></script>
+    <script src="./node_modules/vue-drag-resize/dist/index.js"></script> -->
+    <style>
+    body{-webkit-touch-callout:none;font-family:-apple-system-font,BlinkMacSystemFont,"Helvetica Neue","PingFang SC","Hiragino Sans GB","Microsoft YaHei UI","Microsoft YaHei",Arial,sans-serif;color:#333;letter-spacing:.034em}
+    html, body, #app, .app-container {
+      min-height: 100%;
+      height: 100%;
+      box-sizing: border-box;
+      margin: 0;
+    }
+    .menu, .menu > .el-menu{
+      height: 100%;
+    }
+    .logo{
+      position: fixed;
+      bottom: 20px;
+      left: 30px;
+      width: 100%;
+      font-size: 12px;
+    }
+    .logo img{
+      width: 40px;
+      height: 19px;
+      vertical-align: text-bottom;
+      color: #555;
+    }
+    .el-menu-item{
+      border-left: solid 6px transparent;
+    }
+    .el-menu-item.is-active{
+      border-left: solid 6px #409EFF;
+      background-color: #ecf5ff;
+    }
+    .link{
+      cursor:pointer;
+      margin-left: 20px;
+      font-size: 12px;
+      color: #002f81;
+      text-decoration: underline;
+    }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <el-container class="app-container">
+          <el-aside class="menu" width="200px">
+            <el-menu
+              :default-active="currentPage">
+              <el-menu-item index="import" @click="handleOpen('import')">
+                <i class="el-icon-menu"></i>
+                <span slot="title">模板导入
+                  <el-badge
+                    v-show="tableData.length > 0"
+                    :value="tableData.length"
+                    class="item" />
+                </span>
+              </el-menu-item>
+              <el-menu-item index="export" @click="handleOpen('export')">
+                <i class="el-icon-location"></i>
+                <span slot="title">图片生成</span>
+              </el-menu-item>
+            </el-menu>
+            <div class="logo">
+                <!-- <div style="margin-bottom: 20px; margin-left: -20px;" @click="openurl">
+                    <a class="link">小工具：Word 转 Excel</a>
+                </div> -->
+              <img src="logo.jpg" />
+              二维码图片替换工具
+            </div>
+          </el-aside>
+          <el-container>
+            <el-main v-show="currentPage === 'import'">
+              <el-row>
+                <el-col :span="20">
+                  <el-input v-model="filePath" placeholder="请选择模板图片"></el-input>
+                </el-col>
+                <el-col :span="4">
+                  <el-button @click="selectFile()" type="primary">选择图片</el-button>
+                </el-col>
+              </el-row>
+              <br>
+              <canvas id="qrcanvas"></canvas>
+              <canvas id="canvas"></canvas>
+              <el-col v-show="currentPage === 'import'" :span="4" >
+                <el-button @click="selectArea()" type="primary">确认</el-button>
+              </el-col>
+              <el-col v-show="currentPage === 'import'" :span="4" >
+                <el-button @click="readd()" type="primary">重选</el-button>
+              </el-col>
+            </el-main>
+
+            <el-main v-show="currentPage === 'export'">
+              <el-form label-width="80px">
+                <el-form-item label="二维码">
+                  <el-row>
+                    <el-col :span="20">
+                      <el-input v-model="stampDir" placeholder="二维码所在的目录"></el-input>
+                    </el-col>
+                    <el-col :span="3">
+                      <el-button @click="selectDir('stampDir')" type="primary">选择目录</el-button>
+                    </el-col>
+                  </el-row>
+                </el-form-item>
+                <!-- <el-form> -->
+                  <el-form-item>
+                    <el-progress style="width: 300px;" v-if="loading || loaddone" :status="loaddone ? 'success' : ''" :percentage="parseFloat((loadprogress.finished / loadprogress.total * 100).toFixed(1))"></el-progress>
+                  </el-form-item>
+                <!-- </el-form> -->
+                <el-form-item label="导出目录">
+                  <el-row>
+                    <el-col :span="20">
+                      <el-input v-model="exportDir" placeholder="保存的路径"></el-input>
+                    </el-col>
+                    <el-col :span="3">
+                      <el-button @click="selectDir('exportDir')" type="primary">选择目录</el-button>
+                    </el-col>
+                  </el-row>
+                </el-form-item>
+                <!-- <el-form-item label="类型">
+                  <el-select v-model="exportType" placeholder="请选择导出公函类型">
+                    <el-option
+                      v-for="item in types"
+                      :key="item.value"
+                      :label="item.label"
+                      :value="item.value"></el-option>
+                  </el-select>
+                </el-form-item> -->
+                <el-form-item>
+                  <el-progress style="width: 300px;" v-if="loading || done" :status="done ? 'success' : ''" :percentage="parseFloat((progress.finished / progress.total * 100).toFixed(1))"></el-progress>
+                </el-form-item>
+                <el-form-item>
+                  <el-button :disabled="!hasReady" @click="setQR" type="danger">一键生成</el-button>
+                  <a v-if="progress.finished > 0" class="link" @click="openExportDir">打开生成目录</a>
+                </el-form-item>
+                <div id="placeHolder"></div>
+              </el-form>
+            </el-main>
+          </el-container>
+      </el-container>
+    </div>
+  </body>
+  <script src="./renderer.js">
+    // require('./test.js');
+  </script>
+</html>
